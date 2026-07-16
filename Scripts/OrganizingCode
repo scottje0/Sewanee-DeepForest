@@ -1,0 +1,54 @@
+# Import packages 
+## You need to import these every time you close and reopen Jupyter Notebook!
+import warnings
+warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from PIL import Image
+import numpy as np
+import pandas as pd
+from deepforest import main as deepforest_main
+from deepforest import main
+import rasterio
+import os
+
+# Import images into folders: I structured my folder containing my images as
+# /df info/images/
+# If your imported images are TIFF files (clipped from a raster data set, for example),
+# this code converts them to PNG
+with rasterio.open("df info/images/IMAGENAME.tif") as src:
+    print(f"Bands: {src.count}, Size: {src.width}x{src.height}, CRS: {src.crs}")
+    img_array = src.read([1, 2, 3])
+
+img_array = np.moveaxis(img_array, 0, -1)
+#normalise to 0-225 uint8 if needed
+if img_array.dtype != np.uint8:
+    img_array = ((img_array - img_array.min())/(img_array.max() - img_array.min()) * 255).astype(np.uint8)
+
+Image.fromarray(img_array).save("df info/images/IMAGENAME.png")
+print("Saved as PNG")
+
+# Import annotations into folders: I structured my annotations folder as
+# /df info/tree detection/ for the object detection model, and
+# /df info/species detection/ for the species detection model
+# Annotations from Label Studio should be exported as Pascal VOC XML files, and the following code converts them
+# to CSV files DeepForest can read
+annotations = utilities.read_pascal_voc("df info/tree detection/FILENAME.xml")
+annotations.to_csv("df info/tree detection/FILENAME.csv", index=False)
+
+# Once annotations are converted, combine them into one large CSV file that will directly train the model
+df1 = pd.read_csv("df info/tree detection/FILENAME.csv")
+df2 = pd.read_csv("df info/tree detection/FILENAME.csv")
+df3 = pd.read_csv("df info/tree detection/FILENAME.csv")
+df4 = pd.read_csv("df info/tree detection/FILENAME.csv")
+df5 = pd.read_csv("df info/tree detection/all_annotations.csv")
+
+combined = pd.concat([df1, df2, df3, df4, df5], ignore_index=True)
+combined.to_csv("df info/tree detection/all_annotations.csv", index=False)
+
+## NOTE: 
+# We aren't sure why, but when we exported our annotations from Label Studio to Jupyter Notebook, the image names
+# in the annotations CSV/XML files are renamed with several numbers and letters in front of the image name. We're not sure
+# why this happened or if there is a better way to fix this in Label Studio before exporting annotations, so our solution
+# was to rename our image files with those same numbers and letters. All of the data in this site is correctly named and labeled,
+# but this is noted for future reference. 

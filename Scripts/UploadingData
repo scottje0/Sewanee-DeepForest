@@ -12,10 +12,13 @@ from deepforest import main
 import rasterio
 import os
 
+# To import data into Jupyter Notebook, simply create folders and drag and drop data into those files. 
+
 # Import images into folders: I structured my folder containing my images as
 # /df info/images/
 # If your imported images are TIFF files (clipped from a raster data set, for example),
 # this code converts them to PNG
+
 with rasterio.open("df info/images/IMAGENAME.tif") as src:
     print(f"Bands: {src.count}, Size: {src.width}x{src.height}, CRS: {src.crs}")
     img_array = src.read([1, 2, 3])
@@ -33,10 +36,12 @@ print("Saved as PNG")
 # /df info/species detection/ for the species detection model
 # Annotations from Label Studio should be exported as Pascal VOC XML files, and the following code converts them
 # to CSV files DeepForest can read
+
 annotations = utilities.read_pascal_voc("df info/tree detection/FILENAME.xml")
 annotations.to_csv("df info/tree detection/FILENAME.csv", index=False)
 
 # Once annotations are converted, combine them into one large CSV file that will directly train the model
+
 df1 = pd.read_csv("df info/tree detection/FILENAME.csv")
 df2 = pd.read_csv("df info/tree detection/FILENAME.csv")
 df3 = pd.read_csv("df info/tree detection/FILENAME.csv")

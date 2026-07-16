@@ -1,1 +1,117 @@
+# Import packages
+from deepforest import model
+from deepforest import main
+import torch
+from safetensors.torch import load_file
+import os
+import numpy as np
+from pytorch_lightning.callbacks import TQDMProgressBar
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.lines import Line2D
+from PIL import Image
+import pandas as pd
 
+# Once you organize your annotations into a single CSV file, 
+# create species subfolders for each class
+
+df = pd.read_csv("df info/species detection/allspecies_annotations.csv")
+# Create species subfolders
+for species in df["label"].unique():
+    os.makedirs(f"df info/crops/{species}", exist_ok=True)
+# Crop each annotated box and save to the right subfolder
+for i, row in df.iterrows():
+    img = Image.open(f"df info/images/{row['image_path']}")
+    crop = img.crop((row["xmin"], row["ymin"], row["xmax"], row["ymax"]))
+    crop.save(f"df info/crops/{row['label']}/{row['image_path']}_{i}.png")
+
+# Load the CropModel and establish classes
+## For future additions, adjust the number of classes and the label dictionary as necessary
+
+cropmodel = model.CropModel(
+    config_args={
+        "num_classes": 11,    
+        "label_dict": {"chestnut oak": 0, "white oak": 1, "sassafras": 2,
+                       "sourwood": 3, "poplar": 4, "pale hickory": 5,
+                       "sugar maple": 6, "red maple": 7, "pignut hickory": 8,
+                       "scarlet oak": 9, "dead": 10}
+    }
+)
+# Train the model
+
+cropmodel.load_from_disk("df info/crops/", "df info/crops/")
+cropmodel.create_trainer(max_epochs=50, enable_progress_bar=True)
+cropmodel.trainer.fit(cropmodel)
+cropmodel.trainer.save_checkpoint("dfcropmodel.ckpt") # saves the model
+
+# Predict an image using both the object detection model and the CropModel\
+
+IMAGE_PATH = "df info/images/FILENAME.png"  # change this
+# Load models
+detector = main.deepforest.load_from_checkpoint("dftreedetection1.pt")
+cropmodel = model.CropModel.load_from_checkpoint("dfcropmodel.ckpt")
+cropmodel.eval()
+# Detect crowns
+predictions = detector.predict_tile(
+    path=IMAGE_PATH,
+    patch_size=1500,
+    patch_overlap=0.05
+)
+# Write and classify crops
+image_name = os.path.splitext(os.path.basename(IMAGE_PATH))[0]
+os.makedirs("df info/temp_crops/", exist_ok=True)
+cropmodel.write_crops(
+    root_dir=os.path.dirname(IMAGE_PATH) + "/",
+    images=predictions["image_path"].tolist(),
+    boxes=predictions[["xmin", "ymin", "xmax", "ymax"]].values.tolist(),
+    labels=predictions["label"].tolist(),
+    savedir="df info/temp_crops/"
+)
+transform = cropmodel.get_transform(augmentations=None)
+results = []
+for i, row in predictions.iterrows():
+    crop_path = f"df info/temp_crops/Tree/{image_name}_{i}.png"
+    if not os.path.exists(crop_path):
+        continue
+    img_crop = Image.open(crop_path).convert("RGB")
+    tensor = transform(img_crop).unsqueeze(0)
+    with torch.no_grad():
+        output = cropmodel.model(tensor)
+        pred_idx = output.argmax(dim=1).item()
+        label = cropmodel.numeric_to_label_dict[pred_idx]
+    results.append({**row, "label": label})
+species_predictions = pd.DataFrame(results)
+# Print predictions
+print(f"\n{len(species_predictions)} trees detected:")
+print(species_predictions[["xmin", "ymin", "xmax", "ymax", "label", "score"]].to_string())
+print("\nSpecies counts:")
+print(species_predictions["label"].value_counts())
+# Visualize
+img = Image.open(IMAGE_PATH)
+species = species_predictions["label"].unique()
+colors = plt.cm.tab20.colors
+color_map = {s: colors[i % len(colors)] for i, s in enumerate(species)}
+fig, ax = plt.subplots(1, figsize=(18, 12))
+ax.imshow(np.array(img))
+for _, row in species_predictions.iterrows():
+    color = color_map[row["label"]]
+    rect = patches.Rectangle(
+        (row["xmin"], row["ymin"]),
+        row["xmax"] - row["xmin"],
+        row["ymax"] - row["ymin"],
+        linewidth=1.5, edgecolor=color, facecolor="none"
+    )
+    ax.add_patch(rect)
+    ax.text(row["xmin"], row["ymin"] - 5, row["label"],
+            color=color, fontsize=5, fontweight="bold")
+legend_elements = [
+    Line2D([0], [0], color=color_map[s], linewidth=2,
+           label=f"{s} ({len(species_predictions[species_predictions['label'] == s])})")
+    for s in species
+]
+ax.legend(handles=legend_elements, loc="upper right", fontsize=9,
+          framealpha=0.8, title="Species (count)")
+ax.set_title(f"Species Detection — {len(species_predictions)} total predictions", fontsize=14, fontweight="bold")
+ax.axis("off")
+plt.tight_layout()
+plt.show()

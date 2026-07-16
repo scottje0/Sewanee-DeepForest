@@ -1,1 +1,376 @@
+## IoU and mAP Statistics
 
+# For IoU, run the code found in the ObjectDetectionTraining file that runs model predictions
+# on an image. At the end of each image prediction, add:
+
+species_predictions.to_csv("df info/evaluation/FILENAME.csv", index=False)
+
+# If it isn't already installed, run
+pip install pandas scipy numpy
+
+# Label the true bounding box predictions in Label Studio and import them into the same
+# folder as the model predictions. 
+## DO NOT convert these files to CSV, leave them as XML. 
+
+# Then, run this to get the IoU statistic.
+import os
+import glob
+import xml.etree.ElementTree as ET
+import pandas as pd
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+
+# CHANGE THIS to the folder where your ground truth .xml files
+# and prediction .csv files both live
+UPLOAD_DIR = r"C:\Users\USERNAME\df info\evaluation\annotations"
+
+def parse_voc_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    boxes = []
+    for obj in root.findall("object"):
+        bnd = obj.find("bndbox")
+        xmin = float(bnd.find("xmin").text)
+        ymin = float(bnd.find("ymin").text)
+        xmax = float(bnd.find("xmax").text)
+        ymax = float(bnd.find("ymax").text)
+        boxes.append([xmin, ymin, xmax, ymax])
+    return boxes
+def iou(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    inter_w = max(0, xB - xA)
+    inter_h = max(0, yB - yA)
+    inter_area = inter_w * inter_h
+    areaA = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+    areaB = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+    union = areaA + areaB - inter_area
+    if union <= 0:
+        return 0.0
+    return inter_area / union
+xml_files = glob.glob(os.path.join(UPLOAD_DIR, "*.xml"))
+csv_files = glob.glob(os.path.join(UPLOAD_DIR, "*.csv"))
+def image_key_from_xml(fname):
+    base = os.path.basename(fname).replace(".xml", "")
+    parts = base.split("-", 1)
+    return parts[-1] if len(parts) > 1 else parts[0]
+def image_key_from_csv(fname):
+    df = pd.read_csv(fname)
+    if len(df) == 0:
+        return None
+    img_path = df["image_path"].iloc[0]
+    return os.path.splitext(os.path.basename(img_path))[0]
+gt_map = {image_key_from_xml(f): f for f in xml_files}
+pred_map = {}
+for f in csv_files:
+    key = image_key_from_csv(f)
+    pred_map[key] = f
+all_matches = []  # per-box match records
+per_image_summary = []
+for key in sorted(gt_map.keys()):
+    if key not in pred_map:
+        print(f"WARNING: no prediction file found for {key}")
+        continue
+    gt_boxes = parse_voc_xml(gt_map[key])
+    pred_df = pd.read_csv(pred_map[key])
+    pred_boxes = pred_df[["xmin", "ymin", "xmax", "ymax"]].values.tolist()
+    pred_labels = pred_df["label"].tolist() if "label" in pred_df.columns else [None] * len(pred_boxes)
+    pred_scores = pred_df["score"].tolist() if "score" in pred_df.columns else [None] * len(pred_boxes)
+    n_gt = len(gt_boxes)
+    n_pred = len(pred_boxes)
+    # Build IoU cost matrix (gt rows x pred cols)
+    if n_gt > 0 and n_pred > 0:
+        iou_matrix = np.zeros((n_gt, n_pred))
+        for i, gb in enumerate(gt_boxes):
+            for j, pb in enumerate(pred_boxes):
+                iou_matrix[i, j] = iou(gb, pb)
+        # Hungarian algorithm to find optimal one-to-one assignment
+        # maximize total IoU -> minimize negative IoU
+        row_ind, col_ind = linear_sum_assignment(-iou_matrix)
+    else:
+        row_ind, col_ind = np.array([], dtype=int), np.array([], dtype=int)
+        iou_matrix = np.zeros((n_gt, n_pred))
+    matched_gt = set()
+    matched_pred = set()
+    for r, c in zip(row_ind, col_ind):
+        score = iou_matrix[r, c]
+        matched_gt.add(r)
+        matched_pred.add(c)
+        all_matches.append({
+            "image": key,
+            "gt_index": r,
+            "gt_box": gt_boxes[r],
+            "pred_index": c,
+            "pred_box": pred_boxes[c],
+            "pred_label": pred_labels[c],
+            "pred_score": pred_scores[c],
+            "iou": round(score, 4),
+            "matched": score > 0  # 0 IoU means Hungarian paired them but they don't overlap at all
+        })
+    # Any GT boxes left unmatched (more GT than pred, or IoU was 0 and got filtered) get IoU = 0
+    for i in range(n_gt):
+        if i not in matched_gt:
+            all_matches.append({
+                "image": key,
+                "gt_index": i,
+                "gt_box": gt_boxes[i],
+                "pred_index": None,
+                "pred_box": None,
+                "pred_label": None,
+                "pred_score": None,
+                "iou": 0.0,
+                "matched": False
+            })
+    # unmatched predictions = false positives (extra boxes with no GT partner)
+    n_unmatched_preds = n_pred - len(matched_pred)
+    image_ious = [m["iou"] for m in all_matches if m["image"] == key]
+    per_image_summary.append({
+        "image": key,
+        "n_ground_truth_boxes": n_gt,
+        "n_predicted_boxes": n_pred,
+        "n_unmatched_predictions_fp": n_unmatched_preds,
+        "mean_iou": round(np.mean(image_ious), 4) if image_ious else 0.0
+    })
+# Save detailed per-box results
+detail_df = pd.DataFrame(all_matches)
+detail_df.to_csv("iou_per_box_detail.csv", index=False)
+# Save per-image summary
+summary_df = pd.DataFrame(per_image_summary)
+summary_df.to_csv("iou_per_image_summary.csv", index=False)
+overall_mean_iou = detail_df["iou"].mean()
+print("\n=== Per-Image Summary ===")
+print(summary_df.to_string(index=False))
+print(f"\nOverall mean IoU across all {len(detail_df)} ground truth boxes: {overall_mean_iou:.4f}")
+
+
+### For mAP, run this block:
+##
+##
+import os
+import glob
+import xml.etree.ElementTree as ET
+import pandas as pd
+import numpy as np
+
+# CHANGE THIS to the folder where your ground truth .xml files
+# and prediction .csv files both live
+UPLOAD_DIR = r"C:\Users\scottje0\df info\evaluation\annotations"
+
+def parse_voc_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    boxes = []
+    for obj in root.findall("object"):
+        bnd = obj.find("bndbox")
+        xmin = float(bnd.find("xmin").text)
+        ymin = float(bnd.find("ymin").text)
+        xmax = float(bnd.find("xmax").text)
+        ymax = float(bnd.find("ymax").text)
+        boxes.append([xmin, ymin, xmax, ymax])
+    return boxes
+
+def iou(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    inter_w = max(0, xB - xA)
+    inter_h = max(0, yB - yA)
+    inter_area = inter_w * inter_h
+    areaA = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+    areaB = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+    union = areaA + areaB - inter_area
+    if union <= 0:
+        return 0.0
+    return inter_area / union
+
+def image_key_from_xml(fname):
+    base = os.path.basename(fname).replace(".xml", "")
+    parts = base.split("-", 1)
+    return parts[-1] if len(parts) > 1 else parts[0]
+
+def image_key_from_csv(fname):
+    df = pd.read_csv(fname)
+    if len(df) == 0:
+        return None
+    img_path = df["image_path"].iloc[0]
+    return os.path.splitext(os.path.basename(img_path))[0]
+
+def load_all_data(upload_dir):
+    """Returns dict: image_key -> {"gt": [boxes], "preds": dataframe}"""
+    xml_files = glob.glob(os.path.join(upload_dir, "*.xml"))
+    csv_files = glob.glob(os.path.join(upload_dir, "*.csv"))
+
+    gt_map = {image_key_from_xml(f): f for f in xml_files}
+    pred_map = {}
+    for f in csv_files:
+        key = image_key_from_csv(f)
+        pred_map[key] = f
+
+    data = {}
+    for key in gt_map:
+        if key not in pred_map:
+            continue
+        gt_boxes = parse_voc_xml(gt_map[key])
+        pred_df = pd.read_csv(pred_map[key])
+        data[key] = {"gt": gt_boxes, "preds": pred_df}
+    return data
+
+
+def compute_ap(data, iou_threshold=0.5):
+    """
+    Computes Average Precision at a single IoU threshold across all images.
+    data: dict from load_all_data()
+    """
+    # Gather all predictions across all images into one flat list,
+    # each tagged with which image it belongs to
+    all_preds = []
+    total_gt_count = 0
+
+    for key, d in data.items():
+        total_gt_count += len(d["gt"])
+        for _, row in d["preds"].iterrows():
+            all_preds.append({
+                "image": key,
+                "box": [row["xmin"], row["ymin"], row["xmax"], row["ymax"]],
+                "score": row["score"]
+            })
+
+    # Sort all predictions by confidence score, descending
+    all_preds.sort(key=lambda x: x["score"], reverse=True)
+
+    # Track which GT boxes have already been "claimed" per image
+    claimed = {key: set() for key in data}
+
+    tp = np.zeros(len(all_preds))
+    fp = np.zeros(len(all_preds))
+
+    for i, pred in enumerate(all_preds):
+        key = pred["image"]
+        gt_boxes = data[key]["gt"]
+
+        best_iou = 0.0
+        best_gt_idx = -1
+        for gt_idx, gt_box in enumerate(gt_boxes):
+            if gt_idx in claimed[key]:
+                continue  # already matched to a higher-confidence prediction
+            score = iou(pred["box"], gt_box)
+            if score > best_iou:
+                best_iou = score
+                best_gt_idx = gt_idx
+
+        if best_iou >= iou_threshold and best_gt_idx != -1:
+            tp[i] = 1
+            claimed[key].add(best_gt_idx)
+        else:
+            fp[i] = 1
+
+    # Cumulative TP / FP
+    cum_tp = np.cumsum(tp)
+    cum_fp = np.cumsum(fp)
+
+    recalls = cum_tp / total_gt_count if total_gt_count > 0 else np.zeros_like(cum_tp)
+    precisions = cum_tp / (cum_tp + cum_fp)
+
+    # All-point interpolation (standard Pascal VOC / COCO style):
+    # Make precision non-increasing as recall increases (from the right)
+    interp_precisions = np.maximum.accumulate(precisions[::-1])[::-1]
+
+    # Add sentinel points (recall=0 -> precision=first value, and end)
+    recalls = np.concatenate(([0.0], recalls))
+    interp_precisions = np.concatenate(([interp_precisions[0] if len(interp_precisions) else 0.0], interp_precisions))
+
+    # Area under curve via the change in recall at each step
+    ap = np.sum((recalls[1:] - recalls[:-1]) * interp_precisions[1:])
+
+    return ap, precisions, recalls[1:], total_gt_count, len(all_preds)
+
+
+if __name__ == "__main__":
+    data = load_all_data(UPLOAD_DIR)
+    print(f"Loaded {len(data)} images: {list(data.keys())}")
+
+    # --- AP at the standard single threshold (IoU = 0.5) ---
+    ap50, precisions, recalls, n_gt, n_pred = compute_ap(data, iou_threshold=0.5)
+    print(f"\nTotal ground truth boxes: {n_gt}")
+    print(f"Total predicted boxes: {n_pred}")
+    print(f"\nAverage Precision at IoU=0.5: {ap50:.4f}")
+
+    # --- Custom mAP averaged over IoU thresholds 0.4 to 0.95 ---
+    # NOTE: the official COCO-style mAP definition uses 0.5:0.95.
+    # Starting at 0.4 here is a custom choice, not the standard benchmark range.
+    thresholds = np.arange(0.4, 1.0, 0.05)
+    aps = []
+    for t in thresholds:
+        ap, _, _, _, _ = compute_ap(data, iou_threshold=round(t, 2))
+        aps.append(ap)
+        print(f"Average Precision at IoU={t:.2f}: {ap:.4f}")
+
+    map_custom = np.mean(aps)
+    print(f"\nMean Average Precision at [IoU=0.4:0.95]: {map_custom:.4f}")
+
+##
+##
+### Printing an image overlaying the Ground Truth and Model Predicted Bounding Boxes:
+
+import os
+import xml.etree.ElementTree as ET
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.lines import Line2D
+from PIL import Image
+# ---------- EDIT THESE THREE PATHS ----------
+IMAGE_PATH = r"C:\Users\USERNAME\df info\evaluation\images\IMAGENAME.png"
+GT_XML_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.xml"
+PRED_CSV_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.csv"
+OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\FILENAME.png"
+# ----------------------------------------------
+def parse_voc_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    boxes = []
+    for obj in root.findall("object"):
+        bnd = obj.find("bndbox")
+        xmin = float(bnd.find("xmin").text)
+        ymin = float(bnd.find("ymin").text)
+        xmax = float(bnd.find("xmax").text)
+        ymax = float(bnd.find("ymax").text)
+        boxes.append([xmin, ymin, xmax, ymax])
+    return boxes
+gt_boxes = parse_voc_xml(GT_XML_PATH)
+pred_df = pd.read_csv(PRED_CSV_PATH)
+img = Image.open(IMAGE_PATH)
+fig, ax = plt.subplots(1, figsize=(16, 12))
+ax.imshow(img)
+# Draw ground truth boxes in green (dashed, thicker)
+for box in gt_boxes:
+    xmin, ymin, xmax, ymax = box
+    rect = patches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=1.5, edgecolor="cyan", facecolor="none"
+    )
+    ax.add_patch(rect)
+# Draw predicted boxes in red (solid)
+for _, row in pred_df.iterrows():
+    xmin, ymin, xmax, ymax = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
+    rect = patches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=1.5, edgecolor="red", facecolor="none"
+    )
+    ax.add_patch(rect)
+# Legend
+legend_elements = [
+    Line2D([0], [0], color="cyan", linewidth=1.5, label=f"Ground Truth ({len(gt_boxes)})"),
+    Line2D([0], [0], color="red", linewidth=1.5, label=f"Model Prediction ({len(pred_df)})"),
+]
+ax.legend(handles=legend_elements, loc="upper right", fontsize=12, framealpha=0.85)
+ax.set_title("Ground Truth vs. Predicted Tree Crown Boxes", fontsize=15, fontweight="bold")
+ax.axis("off")
+plt.tight_layout()
+OUTPUT_PATH = r"C:\Users\scottje0\df info\evaluation\scevalimage4_overlay.png"
+plt.savefig(OUTPUT_PATH, dpi=200, bbox_inches="tight")
+print(f"Saved overlay image to: {OUTPUT_PATH}")
+plt.show()

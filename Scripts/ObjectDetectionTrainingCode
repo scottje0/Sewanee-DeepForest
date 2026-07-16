@@ -1,5 +1,4 @@
 # Import packages 
-## You need to import these every time you close and reopen Jupyter Notebook!
 import warnings
 warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
@@ -12,48 +11,16 @@ from deepforest import main
 import rasterio
 import os
 
-# Import images into folders: I structured my folder containing my images as
-# /df info/images/
-# If your imported images are TIFF files (clipped from a raster data set, for example),
-# this code converts them to PNG
-with rasterio.open("df info/images/IMAGENAME.tif") as src:
-    print(f"Bands: {src.count}, Size: {src.width}x{src.height}, CRS: {src.crs}")
-    img_array = src.read([1, 2, 3])
-
-img_array = np.moveaxis(img_array, 0, -1)
-#normalise to 0-225 uint8 if needed
-if img_array.dtype != np.uint8:
-    img_array = ((img_array - img_array.min())/(img_array.max() - img_array.min()) * 255).astype(np.uint8)
-
-Image.fromarray(img_array).save("df info/images/IMAGENAME.png")
-print("Saved as PNG")
-
-# Import annotations into folders: I structured my annotations folder as
-# /df info/tree detection/ for the object detection model, and
-# /df info/species detection/ for the species detection model
-# Annotations from Label Studio should be exported as Pascal VOC XML files, and the following code converts them
-# to CSV files DeepForest can read
-annotations = utilities.read_pascal_voc("df info/tree detection/FILENAME.xml")
-annotations.to_csv("df info/tree detection/FILENAME.csv", index=False)
-
-# Once annotations are converted, combine them into one large CSV file that will directly train the model
-df1 = pd.read_csv("df info/tree detection/FILENAME.csv")
-df2 = pd.read_csv("df info/tree detection/FILENAME.csv")
-df3 = pd.read_csv("df info/tree detection/FILENAME.csv")
-df4 = pd.read_csv("df info/tree detection/FILENAME.csv")
-df5 = pd.read_csv("df info/tree detection/all_annotations.csv")
-
-combined = pd.concat([df1, df2, df3, df4, df5], ignore_index=True)
-combined.to_csv("df info/tree detection/all_annotations.csv", index=False)
-
 # Training the model
 
 # Import the pre-trained object detection model
+
 m = main.deepforest()
 m.load_model(model_name="weecology/deepforest-tree", revision="main")
 print("Model loaded successfully")
 
 # Point to your annotation CSV and image directory
+
 m.config.train.csv_file = "FILENAME.csv"    
 m.config.train.root_dir = "df info/images/" 
 m.config.train.epochs = 5          # 5-10 is usually enough
@@ -62,11 +29,15 @@ m.create_trainer()
 m.trainer.fit(m)
 
 # Save the model
+
 m.save_model("dftreedetection1.pt")
-# Load later
+
+# To load the model later:
+
 m = main.deepforest.load_from_checkpoint("dftreedetection1.pt")
 
 # Run the model on an image and plot the results:
+
 IMAGE_PATH = "df info/images/FILENAME.png"
 boxes = model.predict_tile(
     path=IMAGE_PATH,

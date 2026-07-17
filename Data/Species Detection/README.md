@@ -1,1 +1,1 @@
-
+### These are the annotations that are fed to the Species Detection CropModel for training. They have already been formatted correctly, so if new annotations are imported from Label Studio, they must be converted to CSV format and added to the allspecies_annotations.csv file using the code found in the UploadingData script in the Scripts folder.

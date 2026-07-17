@@ -1,0 +1,9 @@
+# To evaluate the Species Detection model, we ran the model on all evaluation images using the code
+# found in the Training Script. We cross-referenced the model predictions to field observations we
+# took at each site to judge the accuracy and calculate statistics. 
+
+# We calculated statistics on the Species Detector on both our training and evaluation data for the 
+# model. The accuracy of the model on the training data helps us see how well the model processed the 
+# annotations we fed it, and the evaluation data gives us an example of how well the model performs
+# on imagery it hasn't seen before. 
+

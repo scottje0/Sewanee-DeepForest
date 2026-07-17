@@ -10,4 +10,64 @@
 # A layout for calculating Recall, Accuracy, and Precision in an Excel table can be found in the Scripts folder
 # Title: SpeciesDetectionEvalLayout
 
-# 
+# To save a figure with Species Detection predictions, run:
+
+import os
+import xml.etree.ElementTree as ET
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.lines import Line2D
+from PIL import Image
+# ---------- EDIT THESE THREE PATHS ----------
+IMAGE_PATH = r"C:\Users\USERNAME\df info\evaluation\images\IMAGENAME.png"
+GT_XML_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.xml"
+PRED_CSV_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.csv"
+OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\IMAGE.png"
+# ----------------------------------------------
+def parse_voc_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+    boxes = []
+    for obj in root.findall("object"):
+        bnd = obj.find("bndbox")
+        xmin = float(bnd.find("xmin").text)
+        ymin = float(bnd.find("ymin").text)
+        xmax = float(bnd.find("xmax").text)
+        ymax = float(bnd.find("ymax").text)
+        boxes.append([xmin, ymin, xmax, ymax])
+    return boxes
+gt_boxes = parse_voc_xml(GT_XML_PATH)
+pred_df = pd.read_csv(PRED_CSV_PATH)
+img = Image.open(IMAGE_PATH)
+fig, ax = plt.subplots(1, figsize=(16, 12))
+ax.imshow(img)
+# Draw ground truth boxes 
+for box in gt_boxes:
+    xmin, ymin, xmax, ymax = box
+    rect = patches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=1.5, edgecolor="cyan", facecolor="none"
+    )
+    ax.add_patch(rect)
+# Draw predicted boxes 
+for _, row in pred_df.iterrows():
+    xmin, ymin, xmax, ymax = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
+    rect = patches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=1.5, edgecolor="red", facecolor="none"
+    )
+    ax.add_patch(rect)
+# Legend
+legend_elements = [
+    Line2D([0], [0], color="cyan", linewidth=1.5, label=f"Ground Truth ({len(gt_boxes)})"),
+    Line2D([0], [0], color="red", linewidth=1.5, label=f"Model Prediction ({len(pred_df)})"),
+]
+ax.legend(handles=legend_elements, loc="upper right", fontsize=12, framealpha=0.85)
+ax.set_title("Ground Truth vs. Predicted Tree Crown Boxes", fontsize=15, fontweight="bold")
+ax.axis("off")
+plt.tight_layout()
+OUTPUT_PATH = r"C:\Users\scottje0\df info\evaluation\scevalimage4_overlay.png"
+plt.savefig(OUTPUT_PATH, dpi=200, bbox_inches="tight")
+print(f"Saved overlay image to: {OUTPUT_PATH}")
+plt.show()

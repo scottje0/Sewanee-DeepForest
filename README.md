@@ -7,7 +7,7 @@ For the object detection model, we loaded the pre-trained tree crown detection m
 For the species detection model, we used the DeepForest CropModel and trained it on 13 species classes found in the ten 20x20 meter plots. This includes chestnut oak, white oak, black oak, scarlet oak, mockernut hickory, pale hickory, pignut hickory, tulip poplar, sourwood, sassafras, sugar maple, red maple, and dead. We used a similar method to training the object detector: labeling each species class in Label Studio, exporting the annotations to DeepForest, and training the model. 
 
 ## Contents
-This page contains the scripts and data required to accurately reproduce our DeepForest models for their future use and continual training. There is much room for improvement on these models, as their accuracy statistics are still in the preliminary phase of training, but this serves as baseline training for continual reproductions and additions. 
+This site contains the scripts and data required to accurately reproduce our DeepForest models for their future use and continual training. There is much room for improvement on these models, as their accuracy statistics are still in the preliminary phase of training, but this serves as baseline training for continual reproductions and additions. 
 
 ## Other Resources
 The creators of DeepForest have extensively mapped a guide to using their program. This site simply instructs how to use the model and program it exactly as we have in this project, so for further instruction, visit this link: 

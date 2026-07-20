@@ -9,6 +9,17 @@ For the species detection model, we used the DeepForest CropModel and trained it
 ## Contents
 This page contains the scripts and data required to accurately reproduce our DeepForest models for their future use and continual training. There is much room for improvement on these models, as their accuracy statistics are still in the preliminary phase of training, but this serves as baseline training for continual reproductions and additions. 
 
+## Other Resources
+The creators of DeepForest have extensively mapped a guide to using their program. This site simply instructs how to use the model and program it exactly as we have in this project, so for further instruction, visit this link: 
+https://deepforest.readthedocs.io/en/stable/index.html
+
+## Questions?
+If you have any problems or questions regarding this script, feel free to email us!
+
+scottje0@sewanee.edu: student, primary author
+
+chvandev@sewanee.edu: faculty advisor
+
 ## Citations
 Weinstein, B.G., Marconi, S., Aubry‐Kientz, M., Vincent, G., Senyondo, H. and White, E.P., 2020. DeepForest: A Python package for RGB deep learning tree crown delineation. Methods in Ecology and Evolution, 11(12), pp.1743-1751. https://doi.org/10.1111/2041-210X.13472 
 

@@ -1,1 +1,1 @@
-
+### Annotations that have been used to train the species detection model. Remember to convert them to CSV format and combine to create an allspecies_annotations file to train the model! Directions can be found in Scripts/Uploading Data.

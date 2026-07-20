@@ -1,14 +1,13 @@
 ## IoU and mAP Statistics
 
-# For IoU, run the code found in the ObjectDetectionTraining file that runs model predictions
-# on an image. At the end of each image prediction, add:
+# For IoU, first run the model to predict each image. At the end of each cell of code, add:
 
 species_predictions.to_csv("df info/evaluation/FILENAME.csv", index=False)
 
 # If it isn't already installed, run
 pip install pandas scipy numpy
 
-# Label the true bounding box predictions in Label Studio and import them into the same
+# Label the true bounding box predictions in Label Studio for each image and import them into the same
 # folder as the model predictions. 
 ## DO NOT convert these files to CSV, leave them as XML. 
 
@@ -144,8 +143,9 @@ print("\n=== Per-Image Summary ===")
 print(summary_df.to_string(index=False))
 print(f"\nOverall mean IoU across all {len(detail_df)} ground truth boxes: {overall_mean_iou:.4f}")
 
-
-### For mAP, run this block:
+##
+##
+###For mAP, run this block:
 ##
 ##
 import os
@@ -156,7 +156,7 @@ import numpy as np
 
 # CHANGE THIS to the folder where your ground truth .xml files
 # and prediction .csv files both live
-UPLOAD_DIR = r"C:\Users\scottje0\df info\evaluation\annotations"
+UPLOAD_DIR = r"C:\Users\USERNAME\df info\evaluation\annotations"
 
 def parse_voc_xml(xml_path):
     tree = ET.parse(xml_path)
@@ -313,7 +313,7 @@ if __name__ == "__main__":
 
 ##
 ##
-### Printing an image overlaying the Ground Truth and Model Predicted Bounding Boxes:
+### To print an image overlaying the Ground Truth and Model Predicted Bounding Boxes:
 
 import os
 import xml.etree.ElementTree as ET
@@ -326,7 +326,7 @@ from PIL import Image
 IMAGE_PATH = r"C:\Users\USERNAME\df info\evaluation\images\IMAGENAME.png"
 GT_XML_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.xml"
 PRED_CSV_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.csv"
-OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\FILENAME.png"
+OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\FINALIMAGENAME.png"
 # ----------------------------------------------
 def parse_voc_xml(xml_path):
     tree = ET.parse(xml_path)

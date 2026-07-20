@@ -1,9 +1,11 @@
 # IN ANACONDA PROMPT
-# create a new environment:
+#
+# Create a new environment:
 conda create -n deepforest311 python=3.11
 # Type y when it asks and follow the prompts
 
-# Once finished, activate
+# Once finished, activate the environment
+# (from now on, the prompt should look like: (deepforest311) C:\Users\yourusername> )
 conda activate deepforest311
 
 # Install the DeepForest package
@@ -20,6 +22,7 @@ pip install jupyterlab
 jupyter lab
 
 # ONCE IN JUPYTER NOTEBOOK
+#
 # to check the environment:
 import sys
 print(sys.executable) 
@@ -28,10 +31,11 @@ print(sys.executable)
 import deepforest
 print("success")   # it will write "success" (or whatever you choose) if it works
 
-# If it gives an error about needing an update, run:
+# If it gives an error about needing to be updated, run:
 !pip install --upgrade ipywidgets
 
 # IN THE FUTURE 
+#
 # To open the environment and notebook directly, open Anaconda Prompt and run:
 conda activate deepforest311
 jupyter lab

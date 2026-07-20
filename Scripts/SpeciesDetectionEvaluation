@@ -1,16 +1,15 @@
 # To evaluate the Species Detection model, we ran the model on all evaluation images using the code
 # found in the Training Script. We cross-referenced the model predictions to field observations we
-# took at each site to judge the accuracy and calculate statistics. 
+# took at each site to judge its accuracy and calculate statistics. 
 
-# We calculated statistics on the Species Detector on both our training and evaluation data for the 
-# model. The accuracy of the model on the training data helps us see how well the model processed the 
-# annotations we fed it, and the evaluation data gives us an example of how well the model performs
-# on imagery it hasn't seen before. 
+# We calculated statistics on the Species Detector on both our training and evaluation data for the model.
+# The accuracy of the model on the training data helps us see how well the model processed the annotaions
+# we fed it, and the evaluation data gives us an example of how well the model performs on new imagery.
 
-# A layout for calculating Recall, Accuracy, and Precision in an Excel table can be found in the Scripts folder
-# Title: SpeciesDetectionEvalLayout
+# A layout for calculating the Recall, Accuracy, and Precision in an Excel table can be found in the Scripts folder
+# titled SpeciesDetectionEvalLayout
 
-# To save a figure with Species Detection predictions, run:
+# To save a figure with the Species Detection predictions, run:
 
 import os
 import xml.etree.ElementTree as ET
@@ -23,7 +22,7 @@ from PIL import Image
 IMAGE_PATH = r"C:\Users\USERNAME\df info\evaluation\images\IMAGENAME.png"
 GT_XML_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.xml"
 PRED_CSV_PATH = r"C:\Users\USERNAME\df info\evaluation\annotations\FILENAME.csv"
-OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\IMAGE.png"
+OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\IMAGERESULT.png"
 # ----------------------------------------------
 def parse_voc_xml(xml_path):
     tree = ET.parse(xml_path)
@@ -67,7 +66,9 @@ ax.legend(handles=legend_elements, loc="upper right", fontsize=12, framealpha=0.
 ax.set_title("Ground Truth vs. Predicted Tree Crown Boxes", fontsize=15, fontweight="bold")
 ax.axis("off")
 plt.tight_layout()
-OUTPUT_PATH = r"C:\Users\scottje0\df info\evaluation\scevalimage4_overlay.png"
+
+### edit the OUTPUT_PATH here as well
+OUTPUT_PATH = r"C:\Users\USERNAME\df info\evaluation\IMAGERESULT.png"  
 plt.savefig(OUTPUT_PATH, dpi=200, bbox_inches="tight")
 print(f"Saved overlay image to: {OUTPUT_PATH}")
 plt.show()

@@ -19,7 +19,9 @@ m = main.deepforest()
 m.load_model(model_name="weecology/deepforest-tree", revision="main")
 print("Model loaded successfully")
 
-# Point to your annotation CSV and image directory
+# Customize and train the model:
+# add your training csv (all_annotations.csv) and point the root_dir to the directory
+# containing all of your images annotated in that CSV
 
 m.config.train.csv_file = "FILENAME.csv"    
 m.config.train.root_dir = "df info/images/" 
@@ -27,9 +29,7 @@ m.config.train.epochs = 5          # 5-10 is usually enough
 m.config.train.fast_dev_run = False
 m.create_trainer()
 m.trainer.fit(m)
-
 # Save the model
-
 m.save_model("dftreedetection1.pt")
 
 # To load the model later:
@@ -38,16 +38,18 @@ m = main.deepforest.load_from_checkpoint("dftreedetection1.pt")
 
 # Run the model on an image and plot the results:
 
+# Run predictions:
 IMAGE_PATH = "df info/images/FILENAME.png"
 boxes = model.predict_tile(
     path=IMAGE_PATH,
-    patch_size=1500,    # we found that a patch size 800-2000 works best, adjust as necessary
+    patch_size=1500,    # we found that a patch size between 800-2000 works best, adjust as necessary
     patch_overlap=0.25,
     iou_threshold=0.15
 )
 print(f"Trees detected: {len(boxes)}")
 print(boxes.head(10))
 
+# Plot the results:
 def plot_detections(image_path, boxes_df, figsize=(14, 10), box_color='lime', linewidth=1.5):
     img = Image.open(image_path).convert("RGB")
     fig, ax = plt.subplots(1, 1, figsize=figsize)

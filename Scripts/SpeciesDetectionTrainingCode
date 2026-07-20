@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 from PIL import Image
 import pandas as pd
 
-# Once you organize your annotations into a single CSV file, 
+# Once you organize your annotations into a single CSV file (Scripts/UploadingData), 
 # create species subfolders for each class
 
 df = pd.read_csv("df info/species detection/allspecies_annotations.csv")
@@ -26,7 +26,7 @@ for i, row in df.iterrows():
     crop.save(f"df info/crops/{row['label']}/{row['image_path']}_{i}.png")
 
 # Load the CropModel and establish classes
-## For future additions, adjust the number of classes and the label dictionary as necessary
+## For future additions, adjust the number of classes and the label_dict as necessary
 
 cropmodel = model.CropModel(
     config_args={
@@ -44,7 +44,7 @@ cropmodel.create_trainer(max_epochs=50, enable_progress_bar=True)
 cropmodel.trainer.fit(cropmodel)
 cropmodel.trainer.save_checkpoint("dfcropmodel.ckpt") # saves the model
 
-# Predict an image using both the object detection model and the CropModel\
+# Predict an image using both the object detection model and the CropModel
 
 IMAGE_PATH = "df info/images/FILENAME.png"  # change this
 # Load models

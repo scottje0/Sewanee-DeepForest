@@ -1,1 +1,1 @@
-### Annotations that have been used to train the tree crown detection model. Remember to convert them to CSV format and combine to create an all_annotations file to train the model! Directions can be found in Scripts/Uploading Data.
+### Annotations that have been used to train the tree crown detection model. Convert these to CSV format and combine to create an all_annotations file to train the model! Directions can be found in Scripts/Uploading Data.

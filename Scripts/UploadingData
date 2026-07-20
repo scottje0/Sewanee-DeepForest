@@ -12,10 +12,15 @@ from deepforest import main
 import rasterio
 import os
 
-# To import data into Jupyter Notebook, simply create folders and drag and drop data into those files. 
+# To import data into Jupyter Notebook, simply create folders and drag and drop files into those folders. 
 
-# Import images into folders: I structured my folder containing my images as
-# /df info/images/
+### Note: files found in the Data folder are structured how we structured them for our project,
+### so uploading them in a folder format identical to how they are structured here (and all contained in a
+### folder titled 'df info') will be necessary for all template scripts to run successfully.
+
+# Import images into folders: 
+## folder format can be found in the Data folder
+
 # If your imported images are TIFF files (clipped from a raster data set, for example),
 # this code converts them to PNG
 
@@ -31,9 +36,8 @@ if img_array.dtype != np.uint8:
 Image.fromarray(img_array).save("df info/images/IMAGENAME.png")
 print("Saved as PNG")
 
-# Import annotations into folders: I structured my annotations folder as
-# /df info/tree detection/ for the object detection model, and
-# /df info/species detection/ for the species detection model
+# Import annotations into folders: 
+## folder format can be found in the Data folder
 # Annotations from Label Studio should be exported as Pascal VOC XML files, and the following code converts them
 # to CSV files DeepForest can read
 
@@ -46,14 +50,15 @@ df1 = pd.read_csv("df info/tree detection/FILENAME.csv")
 df2 = pd.read_csv("df info/tree detection/FILENAME.csv")
 df3 = pd.read_csv("df info/tree detection/FILENAME.csv")
 df4 = pd.read_csv("df info/tree detection/FILENAME.csv")
-df5 = pd.read_csv("df info/tree detection/all_annotations.csv")
+df5 = pd.read_csv("df info/tree detection/all_annotations.csv") 
+## more files can be added/subtracted here, make sure to also add them below:
 
 combined = pd.concat([df1, df2, df3, df4, df5], ignore_index=True)
 combined.to_csv("df info/tree detection/all_annotations.csv", index=False)
 
 ## NOTE: 
 # We aren't sure why, but when we exported our annotations from Label Studio to Jupyter Notebook, the image names
-# in the annotations CSV/XML files are renamed with several numbers and letters in front of the image name. We're not sure
+# in the annotations CSV/XML files are renamed with random numbers and letters in front of the image name. We're not sure
 # why this happened or if there is a better way to fix this in Label Studio before exporting annotations, so our solution
 # was to rename our image files with those same numbers and letters. All of the data in this site is correctly named and labeled,
 # but this is noted for future reference. 
